@@ -1,0 +1,226 @@
+README for Moblin Twitter Component snd Twitter Component Demo Application
+
+
+CONTENTS
+
+This distribution contains the following items:
+
+Readme.txt - This file :-)
+
+Makefile   - Builds shared lib version of component and app by default.
+             The makefile will build static versions of each upon request.
+
+twtrcomp.c - Implementation of a Intel Atom Developer Program component that
+             utilizes mojito to put and get status messages(tweets) to twitter.
+
+twtrcomp.h - Contains public function prototypes, shared constants
+             and headers.
+
+twtrdemo.c - Demonstrates component functionality via GTK UI or stdout.
+
+
+OVERVIEW
+
+This distribution exists to provide a simple introduction to the steps
+involved in creating a well behaved Intel Atom Developer Program for
+Moblin re-licensable utility component. 
+
+However, the twitter component was written with the expectation that
+it might be suitable for redistribution and reuse as shipped (modulo
+any yet to be discovered bugs).
+
+The demo application is less ambitious and is focused on expository
+goals instead of providing the features that would be expected in a
+robust twitter client.
+
+Both items do provide an example of how to utilize the IADP API.
+
+
+In particular, note the difference's between the IADP API calls made in the
+application and the IADP API calls made in the component - The demo
+app initializes and maintains the relationship with IADP and contains
+the calls to the crash reporting code and the component's role is
+limited to ensuring that the calling app is authorized to use the
+component.
+
+Also note that while the component interacts with mojito to operate
+the relationship with twitter, the application needs no knowledge of
+and has no knowledge of mojito.
+
+
+DETAILS
+
+Makefile
+
+By default, the makefile builds a shared library version of the
+component called libtwtrcomp.so and compiles and links the app named
+twtrdemo againt the shared object library. A shared library would be
+referred to as a Dynamic Link Library (DLL) in Microsoft Windows(tm)
+parlance.
+
+There is also a target in the makefile named 'static' that will build
+a static version of the component called libtwtrcompsta.a and links
+the app naed twtrdemosta against the static library.
+
+Enumerating the reasons why one would choose a static app or a dynamic
+app is beyond the scope of this document. But it can be said that doing
+development work with a static linked app is a bit easier since there
+is no need to go to the extra step of moving the shared object library
+to someplace where the runtime linker ld.so can find it. This also
+avoids the confusion engendered when the developer *forgets* to move
+the newest version of the shared object library to where the runtime
+linker ld.so can find it and the developer wonders why the fix they
+just made is not working...
+
+Note that we use a call to the pkg-config program instead of
+explicitly calling out the names and paths of the appropriate items
+required to resolve dependencies from each package that we depend
+upon: glib, gtk and adpcore. Note that we provide traditional path and
+item references for mojito because at the time of this writing, mojito
+does not provide the .pc file that pkg-config expects to read for a
+named dependency.
+
+
+twtrcomp.h
+
+Provides defines for max string length and  max number of
+tweets. Provides the prototypes for the exported functions
+
+TWTR_put()  TWTR_get()  TWTR_init()  TWTR_shutdown() TWTR_lastError()
+
+Also note the typdef for the function pointer that the application
+needs to implement to allow the component to provide data to the app
+so that the app can show the user:
+
+typedef gboolean (*pfTwtrCompPrintCallback) (gchar* pgcDat);
+
+the applications' realization of this data type will be passed as the
+only argument to TWTR_init(), if this function pointer is NULL, then
+the component will choose to print any data that it has to stdout.
+
+
+twtrcomp.c
+
+It's important to note that the twitter component gets it's work done
+using a 'social data service' named mojito:
+
+      http://moblin.org/projects/mojito
+
+It is beyond the scope of this document to describe mojito in detail,
+the project home page is your best source of information about it.
+
+What is germaine to this discussion is that the relationship between
+mojito and out twitter component is implemented with one 3 element
+data structure (message string, glib GMainLoop handle and Mojito
+Client instance handle) and 5 relatively simple callbacks that we implement for
+mojito to call into to exchange information with us. 
+
+The data structure and the callbacks are documented as preambles to
+their individual implementations inside of twtrcomp.c, please peruse
+those items for further information about each one of them.
+
+The mojito data structure and a 3 other variables are implemented as
+global to this file. 
+
+The first item, g_acMsgErr, is a string that we place any error
+messages into for return via TWT_lastError().
+
+The next item, g_gbWat, is a boolean that the caller can set if they
+want us to linger waiting for mojito to returns us MAX_RECV_ITEMS
+worth of tweets.
+
+Setting this value to true is discouraged because there is no
+guarantee that there will be MAX_RECV_ITEMS worth of tweets waiting to
+be presented and thus the function will block until the queue is
+filled or the app is killed, whichever comes first. 
+
+The last global is g_pfPrt, which is twtrcomp.c's copy of the
+pfTwtrCompPrintCallback function pointer. As previously alluded to,
+the function is implemented in the client and then a pointer to the
+implementation is passed as the argument to TWTR_init();
+
+Note that this pointer is then used in the function present_string(),
+which immediately follows it in the file for ease of reference.
+
+present_string() takes a char* pointer to a string as it's only
+argument and if g_pfPrt is not NULL, it passes the string to the
+function pointed to by g_pfPrt. Or it prints to stdout if g_pfPrt is
+NULL. This function is used thruout the code, wherever string
+presentation is required. This abstracts out the presentation layer so
+that the component will require no knowledge of the GUI toolset used
+in the calling app.
+
+Also of note is the function AppAuthOK(). It wrapps the ADP call
+ADP_IsAppAuthorized() and returns FALSE and an error message in
+TWTR_lastError() if there is a problem with the authorization. Note
+that this calls ADP_IsAppAuthorized() and not ADP_IsAuthorized()
+because the component is concerned with the authorization state of the
+application with respect to the component and the app is concernerd
+with the authorization state of itself.
+
+AppAuthOK() is called before any work is done in TWTR_init(), TWTR_put()
+and TWTR_get() because these are the api calls that add value to the
+calling app.
+
+Further details concerning each function are best left to the code and
+comments, please consult those for any specifics.
+
+
+twtrdemo.c
+
+The demo app is written using gtk, but can be forced at compile time
+to use stdout. Also, it will demote itself to using stdout only if it
+is not able to init gtk.
+
+The application's initialization sequence is as follows:
+
+The UI is initialized (or fails to initialize but we continue on
+anyway using stdout.
+
+The ADP Authorization system is initialized and confirms that the
+application is permitted to run,
+
+The ADP application monitoring service is passed a notification that
+the app has started.
+
+The app now initalizes the twitter component by calling TWTR_init()
+with a pointer to print_cb() as it's argument. This allows the twitter
+component to 'know' that somebody else will be handling the
+presentation responsibilities. TWTR_init() checks that the app is
+authorized to use the component and initializes the components
+relationship with mojito's twitter backend.
+ 
+Any failure modes will cause the invocation of the function
+show_error(), which will present a dialog that contains the error
+message harvested from TWTR_lastError() or an appropriate locally
+written error message derived from the problem at hand.
+
+Once the initialization phase is complete the application loiters in
+gtk_main() awaiting user input.
+
+If the user puushes the 'Post Tweet' button a dialog with an edit
+control is presented and the user can type in a status message. If the
+user hits the OK button in said dialog the tweet is passed to the
+component function TWTR_put().
+
+The code that gets the work done for the 'Get Status' button is worthy
+of note.
+
+The data request is initiated by calling TWTR_get() and when
+TWTR_get() generates a request to mojito to collect the tweets from
+twitter mojito invokes the twitter components callback for collecting
+data. This is the part of the app that leverages the print_cb()
+function that had it's address passed to the twitter component as an
+argument to TWTR_init(). The data received callback 'prints' the
+returned data via print_cb() to the main window of the application.
+
+As mentioned before, the component knows nothing about the
+application's UI, it just knows that it needs to print to
+the function pointer that it has been given. This is somewhat complex
+to think about, but it decouples the component from the applications'
+UI and allows the application developer to utilize the twitter demo
+component with the application UI toolset of their choice.
+
+Further details concerning each function in the demo app are best left
+to the code and comments, please consult those for any specifics.
+

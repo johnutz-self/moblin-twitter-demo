@@ -1,0 +1,46 @@
+Moblin Twitter Component and Demo Application
+
+This distribution exists for three purposes:
+
+1. To provide a simple introduction to the steps involved in creating
+a well behaved Intel Developer Marketplace for Moblin re-licensable
+utility component. 
+
+Both the demo application and the component provide an example of how to
+utilize the IADP API. 
+
+In particular, note the differences between the Intel Atom Developer 
+Program API (IADP API) calls made in the application and the IADP API 
+calls made in the component - The demo app initializes and maintains 
+the relationship with IADP and contains the calls to the crash reporting 
+code and the component's role is limited to ensuring that the calling 
+app is authorized to use the component.
+
+2. To show how to levarage Mojito, a social data service provided as
+part of moblin:
+
+      http://moblin.org/projects/mojito
+
+The twitter component provides the following apis:
+
+TWTR_put()  TWTR_get()  TWTR_init()  TWTR_shutdown()  TWTR_lastError()
+
+3. To show how that component can be called from an application.
+
+Note that while the component interacts with Mojito to operate
+the relationship with twitter, the application needs no knowledge of,
+and has no knowledge of, Mojito.
+
+The demo application is written using GTK as the UI toolset and is
+focused on expository goals instead of providing the features that
+would be expected in a robust twitter client. It provides the simplest
+possible user interface to avoid distracting from the use of the
+IADP api and the component's API.
+
+The implementation of both the component and the demo are discussed in
+great detail in the Readme.txt file that is included in the
+distribution and in the comments in the code.
+
+
+
+
